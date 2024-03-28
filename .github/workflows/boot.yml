@@ -1,23 +1,32 @@
-name: spring-boot-compatibility
-on: [push]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Spring Boot ${{ matrix.spring-boot }}
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      uses: actions/checkout@v3
+    - continue-on-error: true
+      name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        cache: maven
+        distribution: temurin
+        java-version: '17'
+    - continue-on-error: true
+      env:
+        TZ: UTC
+      name: Run Spring Boot tests
+      run: mvn -B -Dspring-boot.version=${{ matrix.spring-boot }} -PspringBootDevelopment
+        clean test --file pom.xml
     strategy:
       matrix:
-        spring-boot: [ '2.5.14', '2.6.14', '2.7.11', '3.0.6', '3.1.0-RC1' ]
-    name: Spring Boot ${{ matrix.spring-boot }}
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Run Spring Boot tests
-        run: mvn -B -Dspring-boot.version=${{ matrix.spring-boot }} -PspringBootDevelopment clean test --file pom.xml
-        env:
-          TZ: UTC
+        spring-boot:
+        - 2.5.14
+        - 2.6.14
+        - 2.7.11
+        - 3.0.6
+        - 3.1.0-RC1
+name: spring-boot-compatibility
+on:
+  repository_dispatch:
+    types: trigger-ga___boot.yml

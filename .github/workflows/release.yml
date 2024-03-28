@@ -1,53 +1,55 @@
-name: Release
-
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version'
-        required: true
-
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    runs-on: self-hosted
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-          cache: maven
-      - name: Set release version
-        run: mvn --no-transfer-progress --batch-mode versions:set -DnewVersion=${{ github.event.inputs.version }} -DgenerateBackupPoms=false
+    - continue-on-error: true
+      name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - continue-on-error: true
+      name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        cache: maven
+        distribution: temurin
+        java-version: '11'
+    - continue-on-error: true
+      name: Set release version
+      run: mvn --no-transfer-progress --batch-mode versions:set -DnewVersion=${{ github.event.inputs.version
+        }} -DgenerateBackupPoms=false
+    - continue-on-error: true
+      name: Stage release
+      run: mvn --no-transfer-progress --batch-mode -Ppublication clean deploy -DskipTests
+        -DaltDeploymentRepository=local::default::file://`pwd`/target/staging-deploy
+    - continue-on-error: true
+      env:
+        JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
+        JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
+        JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+        JRELEASER_NEXUS2_MAVEN_CENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_PASSWORD
+          }}
+        JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME
+          }}
+        JRELEASER_PROJECT_VERSION: ${{ github.event.inputs.version }}
+      name: Run JReleaser
+      uses: jreleaser/release-action@v2
+      with:
+        setup-java: false
+        version: 1.6.0
+    - continue-on-error: true
+      if: always()
+      name: JReleaser release output
+      uses: actions/upload-artifact@v3
+      with:
+        name: jreleaser-release
+        path: 'out/jreleaser/trace.log
 
-      - name: Stage release
-        run: mvn --no-transfer-progress --batch-mode -Ppublication clean deploy -DskipTests -DaltDeploymentRepository=local::default::file://`pwd`/target/staging-deploy
+          out/jreleaser/output.properties
 
-      - name: Run JReleaser
-        uses: jreleaser/release-action@v2
-        with:
-          setup-java: false
-          version: 1.6.0
-        env:
-          JRELEASER_PROJECT_VERSION: ${{ github.event.inputs.version }}
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
-          JRELEASER_NEXUS2_MAVEN_CENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_PASSWORD }}
-
-      - name: JReleaser release output
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: jreleaser-release
-          path: |
-            out/jreleaser/trace.log
-            out/jreleaser/output.properties
+          '
+name: Release
+on:
+  repository_dispatch:
+    types: trigger-ga___release.yml
